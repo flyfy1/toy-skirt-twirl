@@ -9,6 +9,7 @@ import { goreSkirt, type FabricId, type Gores } from './twirl/gores'
 import { Renderer, type ClothLook, type Frame } from './twirl/render'
 import { formR } from './twirl/scene'
 import * as A from './twirl/audio'
+import { offer } from './share'
 
 const PITCH = (14 * Math.PI) / 180
 const FOV = (30 * Math.PI) / 180
@@ -643,11 +644,37 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
     while (trail.length > 2 && now - trail[0][1] > 60) trail.shift()
     if (follow) psi = grabPsi + (e.clientX - grabX) / Rpx()
   })
-  const release = () => {
+  /** a point on the floor (world) to css px */
+  const toScreen = (x: number, y: number, z: number): [number, number] => {
+    const m = view().vp
+    const cw = m[3] * x + m[7] * y + m[11] * z + m[15]
+    return [((m[0] * x + m[4] * y + m[8] * z + m[12]) / cw + 1) * 0.5 * W, (1 - (m[1] * x + m[5] * y + m[9] * z + m[13]) / cw) * 0.5 * H]
+  }
+  // a coin lying still on the floor (denim, a portal to scratch): a short tap within 28 px, the skirt nearly at
+  // rest, flips it (it rattles down again); the 2nd tap may show the bubble
+  const coinTap = (e: PointerEvent) => {
+    if (fabric !== 'denim' || Math.abs(omega) >= 0.3 || performance.now() - grabT > 300) return
+    let best: Item | null = null,
+      bd = 28
+    for (const it of items)
+      if (it.coin && it.rest) {
+        const [sx, sy] = toScreen(it.x, it.y, it.z)
+        const d = Math.hypot(sx - e.clientX, sy - e.clientY)
+        if (d < bd) [best, bd] = [it, d]
+      }
+    if (!best) return
+    const c = best
+    c.rest = false
+    c.vz = 1.1
+    c.spin = (Math.random() < 0.5 ? -1 : 1) * 14
+    offer('twirl', 'coin', () => (items.includes(c) && fabric === 'denim' ? toScreen(c.x, c.y, c.z) : null))
+  }
+  const release = (e: PointerEvent) => {
     if (!held) return
     held = false
     const v = fingerV()
     const moved = trail.length > 1 && Math.abs(trail[trail.length - 1][0] - trail[0][0]) > 6
+    if (!moved) coinTap(e)
     const inGrace = performance.now() - grabT < 80 && !follow
     if (inGrace) omega = Math.max(-CAP, Math.min(CAP, omega + v))
     else if (moved) omega = Math.max(-CAP, Math.min(CAP, v))
@@ -749,6 +776,8 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
   // ---- harness ----
   const toy = { seed, ready: false, shot, fabric, hem: { deg: 0, rho: 0 }, psi: 0, omega: 0, simMs: 0, degrade: 0, under: -1, ctl: -1, items: 0, drawn: false }
   ;(window as unknown as Record<string, unknown>).__toy = toy
+  // the coins lying still, on screen (tests of the portal to scratch)
+  if (import.meta.env.DEV) (toy as Record<string, unknown>).coins = () => items.filter((i) => i.coin && i.rest).map((i) => toScreen(i.x, i.y, i.z))
 
   const frame = (dbg = debug): Frame => {
     const m = skirtM()
