@@ -3,6 +3,7 @@ import { MoreMenu } from './components/MoreMenu'
 import { Hint } from './components/Hint'
 import { applyMeta, t } from './i18n'
 import { startAnalytics, track } from './analytics'
+import { trackLanding } from './share'
 import { startGame } from './game'
 
 const SHOT = new URLSearchParams(location.search).has('shot')
@@ -15,6 +16,7 @@ export default function App() {
   useEffect(() => {
     applyMeta('twirl')
     startAnalytics('twirl')
+    trackLanding()
     return startGame(ref.current!, {
       onFirstTouch: () => {
         setTouched(true)
