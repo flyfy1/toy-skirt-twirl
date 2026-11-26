@@ -44,7 +44,7 @@ Yes. The rush of the cloth, the tick of the stand and a small note for every ful
 English, 简体中文 (Simplified Chinese), Español, Français and 日本語 (Japanese). The language is picked automatically from your browser settings; any other language falls back to English.
 
 **Who made it?**
-Integ Life (integ.life). Give It a Twirl is one of ten small stress-relief toys, together with Charge Burst, Void Harvest, Glass Smash, Chain Pop, Knock on Wood, Lap Cat, Squishy Bun, Scratch That, Peel Off. More games are at games.integ.life.
+Integ Life (integ.life). Give It a Twirl is one of eleven small stress-relief toys, together with Charge Burst, Void Harvest, Glass Smash, Chain Pop, Knock on Wood, Lap Cat, Squishy Bun, Scratch That, Peel Off, Tablecloth Trick. More games are at games.integ.life.
 
 **Is any personal data collected?**
 No account and no personal data. At most, anonymous usage statistics (page views and play counts) are collected.
@@ -60,4 +60,5 @@ No account and no personal data. At most, anonymous usage statistics (page views
 - [Squishy Bun](https://squish.integ.life/): Squeeze a soft mochi bun. It slowly forgives you.
 - [Scratch That](https://scratch.integ.life/): Scratch the silver off a card. Win a nap.
 - [Peel Off](https://peel.integ.life/): Peel the film off a brand-new phone. Then try to put the film down.
+- [Tablecloth Trick](https://yoink.integ.life/): Whip a silk tablecloth out from under Mum's bowls. Fast, or everything goes with it.
 - [Integ Games](https://games.integ.life/): more browser games
