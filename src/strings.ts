@@ -23,6 +23,7 @@ const en = {
   twirl_mamian: "Every pleat is open.",
   twirl_mamian_flat: "The front and back panels stay flat, even now.",
   twirl_glitter: "Glitter. It will be with you for life.",
+  twirl_tag: "Someone spun this skirt {t} times in one go. Your turn.",
 }
 
 const zhCN: typeof en = {
@@ -46,6 +47,7 @@ const zhCN: typeof en = {
   twirl_mamian: "褶子全开了。",
   twirl_mamian_flat: "前后两片马面，转起来也是平的。",
   twirl_glitter: "亮片。会跟你一辈子。",
+  twirl_tag: "有人把这条裙子一口气转了 {t} 圈。你来？",
 }
 
 const es: typeof en = {
@@ -69,6 +71,7 @@ const es: typeof en = {
   twirl_mamian: "Todos los pliegues abiertos.",
   twirl_mamian_flat: "Los paños de delante y detrás siguen planos, incluso ahora.",
   twirl_glitter: "Purpurina. Te va a acompañar toda la vida.",
+  twirl_tag: "Alguien ha hecho girar esta falda {t} vueltas del tirón. Te toca.",
 }
 
 const fr: typeof en = {
@@ -92,6 +95,7 @@ const fr: typeof en = {
   twirl_mamian: "Tous les plis sont ouverts.",
   twirl_mamian_flat: "Les panneaux devant et derrière restent plats, même là.",
   twirl_glitter: "Des paillettes. Vous en avez pour la vie.",
+  twirl_tag: "Quelqu'un a fait tourner cette jupe {t} fois d'une traite. À vous.",
 }
 
 const ja: typeof en = {
@@ -115,6 +119,7 @@ const ja: typeof en = {
   twirl_mamian: "ひだが全部ひらいた。",
   twirl_mamian_flat: "前と後ろの馬面は、回っても平らなまま。",
   twirl_glitter: "ラメ。一生ついてくる。",
+  twirl_tag: "このスカートを一気に {t} 回転させた人がいます。次はあなた。",
 }
 
 export default { en, 'zh-CN': zhCN, es, fr, ja }

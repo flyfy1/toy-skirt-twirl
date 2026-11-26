@@ -17,8 +17,11 @@ export class Surface {
   tv: Float32Array
   crease: Float32Array
   uv: Float32Array
+  /** an optional per-particle scalar carried to the render grid (the 马面裙's inner pleat faces) */
+  mix: Float32Array
   idx: Uint16Array
   private tmp: Float32Array
+  private tmpM: Float32Array
 
   constructor(cols: number, rows: number, su: number, sv: number) {
     this.cols = cols
@@ -35,6 +38,8 @@ export class Surface {
     this.crease = new Float32Array(this.nv)
     this.uv = new Float32Array(this.nv * 2)
     this.tmp = new Float32Array(cols * su * rows * 3)
+    this.tmpM = new Float32Array(cols * su * rows)
+    this.mix = new Float32Array(this.nv)
     for (let r = 0; r < this.RR; r++)
       for (let c = 0; c < this.RC; c++) {
         const k = r * this.RC + c
@@ -52,8 +57,8 @@ export class Surface {
   }
 
   /** Rebuild every attribute from particle positions x (cols x rows, row-major). */
-  update(x: Float32Array) {
-    const { cols, rows, su, sv, RC, RR, tmp, pos } = this
+  update(x: Float32Array, m?: Float32Array) {
+    const { cols, rows, su, sv, RC, RR, tmp, pos, tmpM, mix } = this
     const U = cols * su
     // 1. refine round each row (wrapped Catmull-Rom)
     for (let r = 0; r < rows; r++)
@@ -64,6 +69,7 @@ export class Surface {
           const i0 = (r * cols + ((c - 1 + cols) % cols)) * 3, i1 = (r * cols + c) * 3
           const i2 = (r * cols + ((c + 1) % cols)) * 3, i3 = (r * cols + ((c + 2) % cols)) * 3
           for (let d = 0; d < 3; d++) tmp[o + d] = cr(x[i0 + d], x[i1 + d], x[i2 + d], x[i3 + d], t)
+          if (m) tmpM[o / 3] = m[i1 / 3] * (1 - t) + m[i2 / 3] * t
         }
     // 2. refine down each column (clamped ends)
     for (let r = 0; r < RR; r++) {
@@ -78,6 +84,10 @@ export class Surface {
           const a2 = j0 === j ? 2 * b - e : a
           pos[o + d] = cr(a2, b, e, f, t)
         }
+      }
+      if (m) {
+        for (let c = 0; c < U; c++) mix[r * RC + c] = tmpM[j * U + c] * (1 - t) + tmpM[Math.min(rows - 1, j + 1) * U + c] * t
+        mix[r * RC + U] = mix[r * RC]
       }
       const o = (r * RC + U) * 3, z = r * RC * 3
       pos[o] = pos[z]; pos[o + 1] = pos[z + 1]; pos[o + 2] = pos[z + 2]

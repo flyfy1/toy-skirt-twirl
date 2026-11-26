@@ -1,6 +1,6 @@
 // The atelier renderer (twirl.md 3.2): planar floor shadow (README 3.6), the room, the stand and the form,
-// then the skirt with the fabric shader (README 3.5). Plain WebGL 1.
-import { program, texture, target, ident, rotZ, type GL, type M4, type Prog, type Target } from '../cloth/gl'
+// the things on the floor, then the skirt's cloth layers with the fabric shader (README 3.5). Plain WebGL 1.
+import { program, texture, target, ident, mul, rotZ, type GL, type M4, type Prog, type Target } from '../cloth/gl'
 import { Surface } from '../cloth/mesh'
 import * as B from './bake'
 import * as S from './scene'
@@ -37,7 +37,6 @@ void main(){
   if(u_recv>0.){
     float s=texture2D(u_shadow,gl_FragCoord.xy/u_res).r;
     col*=1.-u_shadowK*s;
-    // a soft sheen across the floor toward the window
     col+=u_recv*.05*smoothstep(1.5,-1.5,v_p.x-v_p.y*.4);
   }
   col+=(hash(gl_FragCoord.xy)-.5)/255.;
@@ -45,10 +44,10 @@ void main(){
 }`
 
 const CLOTH_VS = `
-attribute vec3 a_p;attribute vec3 a_n;attribute vec3 a_tu;attribute vec3 a_tv;attribute float a_k;attribute vec2 a_uv;
-uniform mat4 u_vp;
-varying vec3 v_p;varying vec3 v_n;varying vec3 v_tu;varying vec3 v_tv;varying float v_k;varying vec2 v_uv;
-void main(){v_p=a_p;v_n=a_n;v_tu=a_tu;v_tv=a_tv;v_k=a_k;v_uv=a_uv;gl_Position=u_vp*vec4(a_p,1.);}`
+attribute vec3 a_p;attribute vec3 a_n;attribute vec3 a_tu;attribute vec3 a_tv;attribute float a_k;attribute vec2 a_uv;attribute float a_m;
+uniform mat4 u_vp;uniform mat4 u_m;
+varying vec3 v_p;varying vec3 v_n;varying vec3 v_tu;varying vec3 v_tv;varying float v_k;varying vec2 v_uv;varying float v_m;
+void main(){mat3 r=mat3(u_m);vec4 w=u_m*vec4(a_p,1.);v_p=w.xyz;v_n=r*a_n;v_tu=r*a_tu;v_tv=r*a_tv;v_k=a_k;v_uv=a_uv;v_m=a_m;gl_Position=u_vp*w;}`
 
 const CLOTH_FS = `
 precision highp float;
@@ -58,15 +57,15 @@ uniform vec4 u_sh;   // e_u k_u e_v k_v
 uniform vec3 u_fab;  // k_rim t0 k_ao
 uniform vec2 u_uvs;  // pattern repeats (u, v)
 uniform float u_alpha;uniform float u_debug;uniform float u_flat;
-uniform vec3 u_lining;
-varying vec3 v_p;varying vec3 v_n;varying vec3 v_tu;varying vec3 v_tv;varying float v_k;varying vec2 v_uv;
+uniform vec3 u_lining;uniform vec3 u_inner;
+varying vec3 v_p;varying vec3 v_n;varying vec3 v_tu;varying vec3 v_tv;varying float v_k;varying vec2 v_uv;varying float v_m;
 float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
 void main(){
   bool ff=gl_FrontFacing;
   if(u_flat>.5){gl_FragColor=ff?vec4(0.,1.,0.,1.):vec4(1.,0.,1.,1.);return;}
   if(u_debug>.5&&!ff){gl_FragColor=vec4(1.,0.,1.,1.);return;}
   vec4 tx=texture2D(u_pat,v_uv*u_uvs);
-  vec3 base=tx.rgb;float sm=tx.a*2.5;
+  vec3 base=mix(tx.rgb,u_inner,clamp(v_m,0.,1.));float sm=tx.a*2.5;
   vec3 N=normalize(v_n);if(!ff){N=-N;base=base*u_lining;}
   vec3 V=normalize(u_eye-v_p);vec3 H=normalize(u_L+V);
   float d=clamp((dot(N,u_L)+.4)/1.4,0.,1.);
@@ -76,11 +75,9 @@ void main(){
   float su=pow(sqrt(max(0.,1.-tu*tu)),u_sh.x),sv=pow(sqrt(max(0.,1.-tv*tv)),u_sh.z);
   col+=(u_sh.y*su+u_sh.w*sv)*sm*tint*d*(ff?1.:.25);
   col+=pow(1.-clamp(dot(N,V),0.,1.),4.)*u_fab.x*mix(vec3(1.),base,.5)*.8;
-  // light through a single layer lit from the far side
   col+=u_fab.y*clamp(-dot(N,u_L),0.,1.)*base*1.1;
   col*=1.-u_fab.z*max(v_k,0.);
   col+=.06*max(-v_k,0.);
-  // the inside of a sheer skirt is lit through the cloth: never a dark stain
   if(!ff)col=mix(col,base,u_fab.y);
   col+=(hash(gl_FragCoord.xy)-.5)/255.;
   gl_FragColor=vec4(col,u_debug>.5?1.:u_alpha);
@@ -101,21 +98,39 @@ interface Buf {
   n: number
 }
 
-export interface Fabric {
+/** One cloth layer's look (README 3.5 parameters plus the pattern texture). */
+export interface ClothLook {
+  tex: string
   sh: [number, number, number, number]
   fab: [number, number, number]
   alpha: number
   uvs: [number, number]
   lining: [number, number, number]
-  band: [number, number, number]
-  bandZ: [number, number]
-  bandR: number
+  inner?: [number, number, number]
+  /** shadow strength on the floor */
+  shadow: number
 }
 
-export const FABRICS: Record<string, Fabric> = {
-  chiffon: { sh: [12, 0.12, 18, 0.16], fab: [0.3, 0.35, 0.4], alpha: 0.9, uvs: [6, 1], lining: [0.9, 0.84, 0.86], band: [0.93, 0.62, 0.68], bandZ: [1.0, 1.04], bandR: 0.113 },
-  mamian: { sh: [48, 0.5, 10, 0.1], fab: [0.22, 0.05, 0.5], alpha: 1, uvs: [9, 1], lining: [0.8, 0.8, 0.85], band: [0.96, 0.95, 0.92], bandZ: [0.965, 1.035], bandR: 0.124 },
+export interface Band {
+  tint: [number, number, number]
+  z: [number, number]
+  r: number
 }
+export const BANDS: Record<string, Band> = {
+  chiffon: { tint: [0.93, 0.62, 0.68], z: [1.0, 1.04], r: 0.113 },
+  denim: { tint: [0.26, 0.37, 0.56], z: [0.99, 1.045], r: 0.114 },
+  mamian: { tint: [0.96, 0.95, 0.92], z: [0.965, 1.035], r: 0.124 },
+  tulle: { tint: [0.74, 0.66, 0.9], z: [1.0, 1.04], r: 0.113 },
+}
+
+interface LayerGL {
+  vb: WebGLBuffer
+  ib: WebGLBuffer
+  n: number
+  data: Float32Array
+}
+
+const STRIDE = 16
 
 export class Renderer {
   gl: GL
@@ -126,13 +141,12 @@ export class Renderer {
   private quad!: WebGLBuffer
   private st: Record<string, Buf> = {}
   private tex: Record<string, WebGLTexture> = {}
-  private skirtVB!: WebGLBuffer
-  private skirtIB!: WebGLBuffer
-  private skirtN = 0
+  private layers = new Map<Surface, LayerGL>()
   private dynVB!: WebGLBuffer
   private dynIB!: WebGLBuffer
+  private itVB!: WebGLBuffer
+  private itIB!: WebGLBuffer
   private sh: [Target, Target] | null = null
-  private interleaved = new Float32Array(0)
   seed: number
   shadowDiv = 4
 
@@ -176,10 +190,10 @@ export class Renderer {
     up('form', S.formMesh())
     up('cap', S.capMesh())
     up('key', S.keyMesh())
-    for (const id of Object.keys(FABRICS)) {
-      const f = FABRICS[id]
+    for (const id of Object.keys(BANDS)) {
+      const f = BANDS[id]
       const m = S.mesh()
-      S.lathe(m, [[f.bandZ[0], f.bandR, f.bandR], [f.bandZ[0] + 0.004, f.bandR + 0.002, f.bandR + 0.002], [f.bandZ[1] - 0.004, f.bandR + 0.002, f.bandR + 0.002], [f.bandZ[1], f.bandR - 0.004, f.bandR - 0.004]], 48, () => 0.5)
+      S.lathe(m, [[f.z[0], f.r, f.r], [f.z[0] + 0.004, f.r + 0.002, f.r + 0.002], [f.z[1] - 0.004, f.r + 0.002, f.r + 0.002], [f.z[1], f.r - 0.004, f.r - 0.004]], 48, () => 0.5)
       up('band_' + id, m)
     }
     const white = { w: 1, h: 1, data: new Uint8Array([255, 255, 255, 255]) }
@@ -188,45 +202,63 @@ export class Renderer {
     this.tex.wall = texture(gl, B.wallTex(this.seed))
     this.tex.table = texture(gl, B.tableTex())
     this.tex.linen = texture(gl, B.linenTex(this.seed), true)
-    this.tex.tag = texture(gl, B.tagTex())
+    this.tex.tag = texture(gl, B.tagTex(false))
+    this.tex.tagDizzy = texture(gl, B.tagTex(true))
     this.tex.tape = texture(gl, B.tapeTex(), true)
+    this.tex.items = texture(gl, B.itemsTex())
     this.tex.chiffon = texture(gl, B.chiffonTex(this.seed), true)
+    this.tex.slip = texture(gl, B.slipTex(), true)
+    this.tex.denim = texture(gl, B.denimTex(this.seed), true)
     this.tex.mamian = texture(gl, B.mamianTex(), true)
-    this.skirtVB = gl.createBuffer()!
-    this.skirtIB = gl.createBuffer()!
+    this.tex.tulle = texture(gl, B.tulleTex(this.seed), true)
     this.dynVB = gl.createBuffer()!
     this.dynIB = gl.createBuffer()!
+    this.itVB = gl.createBuffer()!
+    this.itIB = gl.createBuffer()!
     this.sh = null
-    this.surfKey = ''
+    this.layers.clear()
   }
 
-  private surfKey = ''
-  /** Point the skirt buffers at a surface (index buffer rebuilt when the surface changes). */
-  setSurface(s: Surface, key: string) {
-    if (this.surfKey === key) return
+  private layer(s: Surface): LayerGL {
+    let L = this.layers.get(s)
+    if (L) return L
     const gl = this.gl
-    this.surfKey = key
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.skirtIB)
+    const vb = gl.createBuffer()!, ib = gl.createBuffer()!
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib)
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, s.idx, gl.STATIC_DRAW)
-    this.skirtN = s.idx.length
-    this.interleaved = new Float32Array(s.nv * 15)
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.skirtVB)
-    gl.bufferData(gl.ARRAY_BUFFER, this.interleaved.byteLength, gl.DYNAMIC_DRAW)
+    const data = new Float32Array(s.nv * STRIDE)
+    gl.bindBuffer(gl.ARRAY_BUFFER, vb)
+    gl.bufferData(gl.ARRAY_BUFFER, data.byteLength, gl.DYNAMIC_DRAW)
+    L = { vb, ib, n: s.idx.length, data }
+    this.layers.set(s, L)
+    return L
+  }
+
+  /** Drop the GL buffers of surfaces no longer in use (after a skirt swap). */
+  forget(keep: Surface[]) {
+    for (const [s, L] of this.layers)
+      if (!keep.includes(s)) {
+        this.gl.deleteBuffer(L.vb)
+        this.gl.deleteBuffer(L.ib)
+        this.layers.delete(s)
+      }
   }
 
   uploadSurface(s: Surface) {
-    const d = this.interleaved
+    const L = this.layer(s)
+    const d = L.data
     for (let k = 0; k < s.nv; k++) {
-      const o = k * 15
+      const o = k * STRIDE
       d[o] = s.pos[3 * k]; d[o + 1] = s.pos[3 * k + 1]; d[o + 2] = s.pos[3 * k + 2]
       d[o + 3] = s.nrm[3 * k]; d[o + 4] = s.nrm[3 * k + 1]; d[o + 5] = s.nrm[3 * k + 2]
       d[o + 6] = s.tu[3 * k]; d[o + 7] = s.tu[3 * k + 1]; d[o + 8] = s.tu[3 * k + 2]
       d[o + 9] = s.tv[3 * k]; d[o + 10] = s.tv[3 * k + 1]; d[o + 11] = s.tv[3 * k + 2]
       d[o + 12] = s.crease[k]
       d[o + 13] = s.uv[2 * k]; d[o + 14] = s.uv[2 * k + 1]
+      d[o + 15] = s.mix[k]
     }
     const gl = this.gl
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.skirtVB)
+    gl.bindBuffer(gl.ARRAY_BUFFER, L.vb)
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, d)
   }
 
@@ -252,18 +284,24 @@ export class Renderer {
     for (let i = 0; i < 8; i++) gl.disableVertexAttribArray(i)
   }
 
-  /** One frame. `dyn` carries the tag and tape geometry (interleaved like a static mesh). */
   draw(f: Frame) {
     const gl = this.gl
     const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight
-    const fab = FABRICS[f.fabric]
-    const formM = rotZ(f.psi)
-    // dynamic bits: tag and tape
+    const I = ident()
+    const T = f.tilt
+    const formM = mul(T, rotZ(f.psi))
     gl.bindBuffer(gl.ARRAY_BUFFER, this.dynVB)
     gl.bufferData(gl.ARRAY_BUFFER, f.dyn.v, gl.DYNAMIC_DRAW)
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.dynIB)
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, f.dyn.i, gl.DYNAMIC_DRAW)
     const dyn = { vb: this.dynVB, ib: this.dynIB }
+    if (f.items.n) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.itVB)
+      gl.bufferData(gl.ARRAY_BUFFER, f.items.v, gl.DYNAMIC_DRAW)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.itIB)
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, f.items.i, gl.DYNAMIC_DRAW)
+    }
+    for (const l of f.cloth) this.layer(l.surf)
 
     // 1. shadow mask (quarter resolution), blurred
     const sw = Math.max(1, Math.ceil(W / this.shadowDiv)), shh = Math.max(1, Math.ceil(H / this.shadowDiv))
@@ -275,16 +313,14 @@ export class Renderer {
     gl.disable(gl.DEPTH_TEST)
     gl.disable(gl.CULL_FACE)
     gl.enable(gl.BLEND)
-    gl.blendEquation(gl.FUNC_ADD)
     gl.blendFunc(gl.ONE, gl.ONE)
+    const ext = gl.getExtension('EXT_blend_minmax')
+    gl.blendEquation(ext ? ext.MAX_EXT : gl.FUNC_ADD)
     const sp = this.shadow
     gl.useProgram(sp.p)
     gl.uniformMatrix4fv(sp.u.u_vp, false, f.vp)
     gl.uniform3fv(sp.u.u_L, LIGHT)
-    // overlapping casters must not darken twice: MAX blending where available
-    const ext = gl.getExtension('EXT_blend_minmax')
-    gl.blendEquation(ext ? ext.MAX_EXT : gl.FUNC_ADD)
-    const cast = (b: { vb: WebGLBuffer; ib: WebGLBuffer; n: number }, m: M4, k: number, stride = 32) => {
+    const cast = (b: Buf, m: M4, k: number, stride = 32) => {
       gl.uniformMatrix4fv(sp.u.u_m, false, m)
       gl.uniform1f(sp.u.u_k, k)
       gl.bindBuffer(gl.ARRAY_BUFFER, b.vb)
@@ -293,12 +329,11 @@ export class Renderer {
       gl.vertexAttribPointer(sp.a.a_p, 3, gl.FLOAT, false, stride, 0)
       gl.drawElements(gl.TRIANGLES, b.n, gl.UNSIGNED_SHORT, 0)
     }
-    const I = ident()
-    cast(this.st.stand, I, 0.9)
-    cast(this.st.brass, I, 0.9)
+    cast(this.st.stand, T, 0.9)
+    cast(this.st.brass, T, 0.9)
     cast(this.st.form, formM, 0.9)
     cast(this.st.cap, formM, 0.9)
-    cast({ vb: this.skirtVB, ib: this.skirtIB, n: this.skirtN }, I, fab.alpha < 1 ? 0.72 : 0.9, 60)
+    for (const l of f.cloth) cast(this.layers.get(l.surf)!, T, l.look.shadow, STRIDE * 4)
     this.disableAttribs()
     gl.blendEquation(gl.FUNC_ADD)
     gl.disable(gl.BLEND)
@@ -339,99 +374,90 @@ export class Renderer {
     gl.uniform2f(lp.u.u_res, W, H)
     gl.uniform1i(lp.u.u_tex, 0)
     gl.uniform1i(lp.u.u_shadow, 1)
+    gl.uniform1f(lp.u.u_shadowK, 0.42)
     gl.activeTexture(gl.TEXTURE1)
     gl.bindTexture(gl.TEXTURE_2D, this.sh[0].tex)
     gl.activeTexture(gl.TEXTURE0)
-    const obj = (b: { vb: WebGLBuffer; ib: WebGLBuffer; n: number }, tex: string, tint: number[], m: M4, spec = 0, shin = 8, recv = 0, cut = 0) => {
+    const obj = (b: { vb: WebGLBuffer; ib: WebGLBuffer; n: number }, tex: string, tint: number[], m: M4, spec = 0, shin = 8, recv = 0, cut = 0, offset = 0) => {
       gl.bindTexture(gl.TEXTURE_2D, this.tex[tex])
       gl.uniformMatrix4fv(lp.u.u_m, false, m)
       gl.uniform3fv(lp.u.u_tint, tint)
       gl.uniform1f(lp.u.u_spec, spec)
       gl.uniform1f(lp.u.u_shin, shin)
       gl.uniform1f(lp.u.u_recv, recv)
-      gl.uniform1f(lp.u.u_shadowK, 0.42)
       gl.uniform1f(lp.u.u_cut, cut)
       this.bindLit(b, lp)
-      gl.drawElements(gl.TRIANGLES, b.n, gl.UNSIGNED_SHORT, 0)
+      gl.drawElements(gl.TRIANGLES, b.n, gl.UNSIGNED_SHORT, offset * 2)
     }
     obj(this.st.wall, 'wall', [1, 1, 1], I, 0, 4, 0)
     obj(this.st.floor, 'floor', [1, 1, 1], I, 0.1, 6, 1)
     obj(this.st.table, 'table', [1, 1, 1], I, 0.05, 8)
     obj(this.st.cushion, 'white', [0.82, 0.16, 0.14], I, 0.25, 20)
     obj(this.st.leaf, 'white', [0.25, 0.48, 0.2], I, 0.1, 10)
-    obj(this.st.stand, 'white', [0.09, 0.09, 0.1], I, 0.55, 40)
-    obj(this.st.brass, 'white', [0.78, 0.6, 0.28], I, 0.9, 30)
+    obj(this.st.stand, 'white', [0.09, 0.09, 0.1], T, 0.55, 40)
+    obj(this.st.brass, 'white', [0.78, 0.6, 0.28], T, 0.9, 30)
     obj(this.st.form, 'linen', [1, 1, 1], formM, 0.04, 6)
     obj(this.st.cap, 'white', [0.54, 0.35, 0.21], formM, 0.45, 24)
     obj(this.st.key, 'white', [0.8, 0.62, 0.3], formM, 0.9, 30)
-    if (f.dyn.tapeN) obj({ ...dyn, n: f.dyn.tapeN }, 'tape', [1, 1, 1], I, 0.15, 12)
-    if (f.dyn.tagN) {
-      gl.uniform1f(lp.u.u_cut, 0.5)
-      this.bindLit(dyn, lp)
-      gl.bindTexture(gl.TEXTURE_2D, this.tex.tag)
-      gl.uniformMatrix4fv(lp.u.u_m, false, I)
-      gl.uniform3fv(lp.u.u_tint, [1, 1, 1])
-      gl.uniform1f(lp.u.u_spec, 0.05)
-      gl.uniform1f(lp.u.u_recv, 0)
-      gl.drawElements(gl.TRIANGLES, f.dyn.tagN, gl.UNSIGNED_SHORT, f.dyn.tapeN * 2)
-      if (f.dyn.strN) {
-        gl.bindTexture(gl.TEXTURE_2D, this.tex.white)
-        gl.uniform1f(lp.u.u_cut, 0)
-        gl.uniform3fv(lp.u.u_tint, [0.85, 0.8, 0.7])
-        gl.drawElements(gl.TRIANGLES, f.dyn.strN, gl.UNSIGNED_SHORT, (f.dyn.tapeN + f.dyn.tagN) * 2)
-      }
-    }
-    obj(this.st['band_' + f.fabric], 'white', fab.band, formM, 0.2, 16)
+    const d = f.dyn
+    if (d.tapeN) obj({ ...dyn, n: d.tapeN }, 'tape', [1, 1, 1], T, 0.15, 12)
+    obj({ ...dyn, n: d.tagN }, f.dizzy ? 'tagDizzy' : 'tag', [1, 1, 1], T, 0.05, 8, 0, 0.5, d.tapeN)
+    obj({ ...dyn, n: d.strN }, 'white', [0.85, 0.8, 0.7], T, 0, 8, 0, 0, d.tapeN + d.tagN)
+    if (f.band) obj(this.st['band_' + f.band], 'white', BANDS[f.band].tint, mul(formM, f.bandM ?? I), 0.2, 16)
+    if (f.items.n) obj({ vb: this.itVB, ib: this.itIB, n: f.items.n }, 'items', [1, 1, 1], I, 0.5, 30, 0, 0.5)
     this.disableAttribs()
 
-    // 3. the skirt: back faces (the inside) first, then the outer face over them
+    // 3. the skirt's layers, inner first: back faces (the inside), then the outer face over them
     const cp = this.cloth
     gl.useProgram(cp.p)
     gl.uniformMatrix4fv(cp.u.u_vp, false, f.vp)
     gl.uniform3fv(cp.u.u_L, LIGHT)
     gl.uniform3fv(cp.u.u_eye, f.eye)
-    gl.uniform4fv(cp.u.u_sh, fab.sh)
-    gl.uniform3fv(cp.u.u_fab, fab.fab)
-    gl.uniform2fv(cp.u.u_uvs, fab.uvs)
-    gl.uniform3fv(cp.u.u_lining, fab.lining)
-    gl.uniform1f(cp.u.u_alpha, fab.alpha)
     gl.uniform1f(cp.u.u_debug, f.debug === 'under' ? 1 : 0)
     gl.uniform1f(cp.u.u_flat, f.debug === 'flat' || f.debug === 'ctl' ? 1 : 0)
     gl.uniform1i(cp.u.u_pat, 0)
-    gl.bindTexture(gl.TEXTURE_2D, this.tex[f.fabric])
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.skirtVB)
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.skirtIB)
-    const at = (name: string, size: number, off: number) => {
-      const loc = cp.a[name]
-      if (loc === undefined) return
-      gl.enableVertexAttribArray(loc)
-      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 60, off * 4)
-    }
-    at('a_p', 3, 0)
-    at('a_n', 3, 3)
-    at('a_tu', 3, 6)
-    at('a_tv', 3, 9)
-    at('a_k', 1, 12)
-    at('a_uv', 2, 13)
-    gl.enable(gl.CULL_FACE)
-    gl.cullFace(gl.FRONT)
-    gl.drawElements(gl.TRIANGLES, this.skirtN, gl.UNSIGNED_SHORT, 0)
-    gl.cullFace(gl.BACK)
-    const blend = fab.alpha < 1 && !f.debug
-    if (f.debug === 'ctl') {
-      // control for the underside check: only back faces are drawn, so the inside must show magenta
+    for (const l of f.cloth) {
+      const L = this.layers.get(l.surf)!
+      const k = l.look
+      gl.uniformMatrix4fv(cp.u.u_m, false, l.m ? mul(T, l.m) : T)
+      gl.uniform4fv(cp.u.u_sh, k.sh)
+      gl.uniform3fv(cp.u.u_fab, k.fab)
+      gl.uniform2fv(cp.u.u_uvs, k.uvs)
+      gl.uniform3fv(cp.u.u_lining, k.lining)
+      gl.uniform3fv(cp.u.u_inner, k.inner ?? [0, 0, 0])
+      gl.uniform1f(cp.u.u_alpha, k.alpha)
+      gl.bindTexture(gl.TEXTURE_2D, this.tex[k.tex])
+      gl.bindBuffer(gl.ARRAY_BUFFER, L.vb)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, L.ib)
+      const at = (name: string, size: number, off: number) => {
+        const loc = cp.a[name]
+        if (loc === undefined) return
+        gl.enableVertexAttribArray(loc)
+        gl.vertexAttribPointer(loc, size, gl.FLOAT, false, STRIDE * 4, off * 4)
+      }
+      at('a_p', 3, 0)
+      at('a_n', 3, 3)
+      at('a_tu', 3, 6)
+      at('a_tv', 3, 9)
+      at('a_k', 1, 12)
+      at('a_uv', 2, 13)
+      at('a_m', 1, 15)
+      gl.enable(gl.CULL_FACE)
+      gl.cullFace(gl.FRONT)
+      gl.drawElements(gl.TRIANGLES, L.n, gl.UNSIGNED_SHORT, 0)
+      if (f.debug !== 'ctl') {
+        gl.cullFace(gl.BACK)
+        const blend = k.alpha < 1 && !f.debug
+        if (blend) {
+          gl.enable(gl.BLEND)
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+        }
+        gl.drawElements(gl.TRIANGLES, L.n, gl.UNSIGNED_SHORT, 0)
+        gl.disable(gl.BLEND)
+      }
       gl.disable(gl.CULL_FACE)
       this.disableAttribs()
-      return
     }
-    if (blend) {
-      gl.enable(gl.BLEND)
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-    }
-    gl.drawElements(gl.TRIANGLES, this.skirtN, gl.UNSIGNED_SHORT, 0)
-    gl.disable(gl.BLEND)
-    gl.disable(gl.CULL_FACE)
-    this.disableAttribs()
   }
 }
 
@@ -439,7 +465,14 @@ export interface Frame {
   vp: M4
   eye: number[]
   psi: number
-  fabric: string
+  /** the whole stand's sway (dizzy), applied to everything that stands on it */
+  tilt: M4
+  dizzy: boolean
+  band: string
+  /** the waistband's own offset (lifted during a swap) */
+  bandM?: M4
+  cloth: { surf: Surface; look: ClothLook; m?: M4 }[]
   debug: string
   dyn: { v: Float32Array; i: Uint16Array; tapeN: number; tagN: number; strN: number }
+  items: { v: Float32Array; i: Uint16Array; n: number }
 }

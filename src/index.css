@@ -52,3 +52,11 @@ body.about-open #about {
   width: 2.5rem; height: 2.5rem; border-radius: 9999px;
   background: rgba(255,255,255,0.12); color: #fff; font-size: 1rem; cursor: pointer;
 }
+
+/* the empty hanger swings a little */
+@keyframes twirl-swing {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+.twirl-swing { animation: twirl-swing 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .twirl-swing { animation: none; } }
