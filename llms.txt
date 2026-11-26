@@ -1,0 +1,65 @@
+# Give It a Twirl
+
+> A new skirt on a tailor's dress form. Swipe sideways and it spins: the hem swings out, rises into a cone and, with a hard flick, stands out flat like a plate. Then it slows and the folds fall back one by one. Four fabrics that each move differently: chiffon, denim, a pleated mamianqun and tulle. A tiny cloth-physics toy, no sign-up.
+
+Give It a Twirl (转圈圈 (zh-CN), Falda con Vuelo (es), La Jupe qui Tourne (fr), くるくるスカート (ja)) is a free browser toy at https://twirl.integ.life/ by Integ Life. It opens straight into play: no sign-up, no download, no ads, no tutorial. It works with a mouse or a touchscreen on phones, tablets and computers.
+
+## How to play
+
+1. Swipe sideways anywhere, with a finger or the mouse. The dress form turns on its stand like a wheel and keeps the speed you gave it.
+2. Below about one turn a second the skirt only swings. Faster, and the hem lifts; at two turns a second it stands out flat. Swipe again to keep it there.
+3. Hold a finger still on it to brake. The form stops; the skirt keeps going and wraps round it.
+4. Tap a hanger at the top to change the skirt: chiffon, denim, a pleated mamianqun or tulle. Each one flies differently.
+
+## Facts
+
+- URL: https://twirl.integ.life/
+- Price: free
+- Platforms: any modern web browser (desktop and mobile)
+- Languages: English, 简体中文 (Simplified Chinese), Español, Français and 日本語 (Japanese), picked from the browser language (default English)
+- Sound: synthesised live with the Web Audio API; vibration on Android
+- Made by: Integ Life (https://integ.life/), first published 2026-11-26
+
+## FAQ
+
+**Why does the skirt rise when it spins?**
+Every bit of cloth is trying to go in a straight line while the waist pulls it round in a circle, so the cloth swings outward, and the faster it goes the higher it rises. A strip 62 cm long starts to lift at about 0.8 turns a second and is nearly level at 2. The toy simulates the cloth and lets this happen by itself.
+
+**What is a mamianqun?**
+A traditional Chinese pleated skirt (马面裙, 'horse-face skirt'). It is made of flat front and back panels with pressed knife pleats between them. When it spins the pleats fan open into a bell and the flat panels stay flat.
+
+**Is there anyone wearing the skirt?**
+No. It is on a tailor's dress form, a linen torso on an iron stand.
+
+**Why did things fly out of the denim skirt?**
+It has pockets.
+
+**Is Give It a Twirl free?**
+Yes. It is free, with no sign-up, no download and no ads. It runs in any modern browser on phones, tablets and computers.
+
+**Does it have sound and vibration?**
+Yes. The rush of the cloth, the tick of the stand and a small note for every full turn are synthesised live with the Web Audio API; there are no audio files. On Android phones each quarter turn is also a tick of vibration.
+
+**Which languages does it support?**
+English, 简体中文 (Simplified Chinese), Español, Français and 日本語 (Japanese). The language is picked automatically from your browser settings; any other language falls back to English.
+
+**Who made it?**
+Integ Life (integ.life). Give It a Twirl is one of twelve small stress-relief toys, together with Charge Burst, Void Harvest, Glass Smash, Chain Pop, Knock on Wood, Lap Cat, Squishy Bun, Scratch That, Peel Off, Tablecloth Trick, Smooth as Silk. More games are at games.integ.life.
+
+**Is any personal data collected?**
+No account and no personal data. At most, anonymous usage statistics (page views and play counts) are collected.
+
+## Related
+
+- [Charge Burst](https://charge.integ.life/): Hold to annoy a pufferfish until it puffs up and blows its spines off.
+- [Void Harvest](https://void.integ.life/): Your cursor is a black hole: swallow the socks, receipts, client emails and Monday. Sometimes it gives one sock back.
+- [Glass Smash](https://smash.integ.life/): Smash a pane of glass with the word you hate written on it.
+- [Chain Pop](https://pop.integ.life/): A sheet of parcel bubble wrap that never runs out. One bubble refuses to pop.
+- [Knock on Wood](https://knock.integ.life/): Tap a wooden fish. Merit +1.
+- [Lap Cat](https://purr.integ.life/): Pet a soft, purring cat on your screen. Mind the belly.
+- [Squishy Bun](https://squish.integ.life/): Squeeze a soft mochi bun. It slowly forgives you.
+- [Scratch That](https://scratch.integ.life/): Scratch the silver off a card. Win a nap.
+- [Peel Off](https://peel.integ.life/): Peel the film off a brand-new phone. Then try to put the film down.
+- [Tablecloth Trick](https://yoink.integ.life/): Whip a silk tablecloth out from under Mum's bowls. Fast, or everything goes with it.
+- [Smooth as Silk](https://silk.integ.life/): A silk curtain at an open window. Drag it, let go, watch it fall back.
+- [Integ Games](https://games.integ.life/): more browser games
