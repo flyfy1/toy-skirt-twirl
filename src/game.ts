@@ -551,6 +551,8 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
         } else if (n === 40) hooks.mum()
         else once('twirl_100')
       }
+    // denim is too heavy to fly; what is in its pockets is not
+    if (fabric === 'denim' && w > 6) once('twirl_denim')
     // it has pockets
     if (fabric === 'denim' && w > 9 && !run.pk) {
       if (!pocketsDone) {
@@ -759,7 +761,7 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
     const { vp, eye } = view()
     return {
       vp, eye, psi: psi + nudge, tilt: tiltM(), dizzy: dizzyFace, band: fabric, bandM: m, debug: dbg,
-      cloth: surfs.map((s, k) => ({ surf: s, look: looks[k], m, fade: swapNext ? Math.max(0, 1 - swapT / 0.25) : undefined })),
+      cloth: surfs.map((s, k) => ({ surf: s, look: fabric === 'chiffon' && k > 0 ? { ...looks[k], alpha: 0.9 + 0.08 * smooth(0.35, 0.65, sk.hem().rho) } : looks[k], m, fade: swapNext ? Math.max(0, 1 - swapT / 0.25) : undefined })),
       dyn: { v: dynV, i: dynIdx, tapeN, tagN: 6, strN: 6 },
       items: { v: itV, i: itIdx, n: nItems },
     }

@@ -137,7 +137,7 @@ function folds(seed: number, n: number, deepFolds = true) {
 
 const SPECS: Record<string, Spec> = {
   chiffon: { N: 48, cols: 96, rows: 14, L: 0.62, thMax: 86, th0: 9, cTh: 3, zeta: 0.25, folds: 12, foldK: 1, su: 2, sv: 2 },
-  denim: { N: 48, cols: 96, rows: 12, L: 0.5, thMax: 84, th0: 13, cTh: 8, zeta: 0.7, folds: 8, foldK: 0.6, su: 2, sv: 2 },
+  denim: { N: 48, cols: 96, rows: 12, L: 0.5, thMax: 50, th0: 13, cTh: 8, zeta: 0.7, folds: 8, foldK: 0.6, su: 2, sv: 2 },
   mamian: { N: 80, cols: 440, rows: 12, L: 0.95, thMax: 40, th0: 3, cTh: 5, zeta: 0.5, folds: 0, foldK: 0, su: 1, sv: 2 },
   tulle0: { N: 32, cols: 64, rows: 6, L: 0.4, thMax: 80, th0: 55, cTh: 6, zeta: 0.5, folds: 10, foldK: 0.35, su: 2, sv: 2 },
   tulle1: { N: 32, cols: 64, rows: 6, L: 0.36, thMax: 83, th0: 62, cTh: 6, zeta: 0.5, folds: 10, foldK: 0.35, su: 2, sv: 2 },
@@ -307,7 +307,7 @@ export function goreSkirt(id: FabricId, seed: number): Gores {
     id,
     L: main.s.L,
     drag: id === 'denim' ? 0.6 : id === 'mamian' ? 0.9 : id === 'tulle' ? 1.6 : 1,
-    bloomDeg: mam ? 30 : 65,
+    bloomDeg: mam ? 30 : id === 'denim' ? 42 : 65,
     layers,
     step(dt, ps, w) {
       const n = 4, h = dt / n
