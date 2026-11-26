@@ -3,6 +3,7 @@
 // included since it went live. Copy from twirl.md section 7.6 and README section 2 (the no-WebGL line).
 
 const en = {
+  name_twirl: "Give It a Twirl",
   desc_twirl: "A new skirt on a tailor's dress form. Swipe sideways and it spins: the hem swings out, rises into a cone and, with a hard flick, stands out flat like a plate. Then it slows and the folds fall back one by one. Four fabrics that each move differently. A tiny cloth-physics toy, no sign-up.",
   hint_twirl: "Swipe sideways to spin it",
   twirl_nogl: "This toy needs WebGL, and this browser has it switched off.",
@@ -27,6 +28,7 @@ const en = {
 }
 
 const zhCN: typeof en = {
+  name_twirl: "转圈圈",
   desc_twirl: "裁缝铺的人台上套着一条新裙子。横着一划，它就转起来：裙摆甩开，升成一个圆锥，用力一划就平平地飞成一个圆盘。慢下来以后，褶子一道一道落回去。四种面料，转起来各不一样。打开即玩的布料小玩具。",
   hint_twirl: "横着一划，让它转起来",
   twirl_nogl: "这个玩具需要 WebGL，这个浏览器没开。",
@@ -51,6 +53,7 @@ const zhCN: typeof en = {
 }
 
 const es: typeof en = {
+  name_twirl: "Falda con Vuelo",
   desc_twirl: "Una falda nueva en un maniquí de sastre. Desliza de lado y gira: el bajo se abre, sube formando un cono y, con un buen impulso, queda plano como un plato. Luego frena y los pliegues vuelven a caer uno a uno. Cuatro tejidos que se mueven cada uno a su manera. Un pequeño juguete de física de telas, sin registro.",
   hint_twirl: "Desliza de lado para hacerla girar",
   twirl_nogl: "Este juguete necesita WebGL y este navegador lo tiene desactivado.",
@@ -75,6 +78,7 @@ const es: typeof en = {
 }
 
 const fr: typeof en = {
+  name_twirl: "La Jupe qui Tourne",
   desc_twirl: "Une jupe neuve sur un mannequin de couture. Glissez sur le côté et elle tourne : l'ourlet s'écarte, monte en cône et, d'un bon élan, se déploie à plat comme une assiette. Puis elle ralentit et les plis retombent un à un. Quatre tissus, quatre façons de voler. Un petit jouet de physique textile, sans inscription.",
   hint_twirl: "Glissez sur le côté pour la faire tourner",
   twirl_nogl: "Ce jouet a besoin de WebGL, et ce navigateur l'a désactivé.",
@@ -99,6 +103,7 @@ const fr: typeof en = {
 }
 
 const ja: typeof en = {
+  name_twirl: "くるくるスカート",
   desc_twirl: "仕立て屋のトルソーに、新しいスカート。横にスワイプすると回りだす。すそが広がり、円すいになり、強くはじけばお皿のように水平にひらく。やがて速度が落ちて、ひだがひとつずつ戻っていく。生地は4種類、動きはそれぞれ違う。登録不要の小さな布のおもちゃ。",
   hint_twirl: "横にスワイプして回す",
   twirl_nogl: "このおもちゃには WebGL が必要ですが、このブラウザでは無効になっています。",
