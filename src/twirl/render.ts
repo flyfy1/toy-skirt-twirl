@@ -442,12 +442,17 @@ export class Renderer {
       at('a_k', 1, 12)
       at('a_uv', 2, 13)
       at('a_m', 1, 15)
+      const fade = l.fade ?? 1
       gl.enable(gl.CULL_FACE)
-      gl.cullFace(gl.FRONT)
-      gl.drawElements(gl.TRIANGLES, L.n, gl.UNSIGNED_SHORT, 0)
+      // a skirt being lifted off fades out and its inside is not drawn (no looking into it through the waist)
+      if (fade >= 1 || f.debug === 'ctl') {
+        gl.cullFace(gl.FRONT)
+        gl.drawElements(gl.TRIANGLES, L.n, gl.UNSIGNED_SHORT, 0)
+      }
       if (f.debug !== 'ctl') {
         gl.cullFace(gl.BACK)
-        const blend = k.alpha < 1 && !f.debug
+        const blend = (k.alpha < 1 || fade < 1) && !f.debug
+        gl.uniform1f(cp.u.u_alpha, k.alpha * fade)
         if (blend) {
           gl.enable(gl.BLEND)
           gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
@@ -471,7 +476,8 @@ export interface Frame {
   band: string
   /** the waistband's own offset (lifted during a swap) */
   bandM?: M4
-  cloth: { surf: Surface; look: ClothLook; m?: M4 }[]
+  /** fade: 0..1 while a skirt is lifted off (drawn see-through, outside only) */
+  cloth: { surf: Surface; look: ClothLook; m?: M4; fade?: number }[]
   debug: string
   dyn: { v: Float32Array; i: Uint16Array; tapeN: number; tagN: number; strN: number }
   items: { v: Float32Array; i: Uint16Array; n: number }

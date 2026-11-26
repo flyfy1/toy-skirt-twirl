@@ -19,8 +19,8 @@ export const FABRICS: FabricId[] = ['chiffon', 'denim', 'mamian', 'tulle']
 
 const LOOKS: Record<string, ClothLook> = {
   slip: { tex: 'slip', sh: [6, 0.03, 6, 0.03], fab: [0.08, 0, 0.45], alpha: 1, uvs: [4, 1], lining: [0.95, 0.9, 0.92], shadow: 0.9 },
-  chiffon: { tex: 'chiffon', sh: [10, 0.07, 14, 0.08], fab: [0.24, 0.3, 0.42], alpha: 0.8, uvs: [1, 1], lining: [0.92, 0.86, 0.88], shadow: 0.5 },
-  denim: { tex: 'denim', sh: [6, 0.04, 6, 0.04], fab: [0.1, 0, 0.55], alpha: 1, uvs: [1, 1], lining: [2.1, 1.9, 1.55], shadow: 0.9 },
+  chiffon: { tex: 'chiffon', sh: [10, 0.07, 14, 0.08], fab: [0.24, 0.3, 0.42], alpha: 0.9, uvs: [1, 1], lining: [0.92, 0.86, 0.88], shadow: 0.5 },
+  denim: { tex: 'denim', sh: [6, 0.04, 6, 0.04], fab: [0.1, 0, 0.3], alpha: 1, uvs: [1, 1], lining: [2.1, 1.9, 1.55], shadow: 0.9 },
   mamian: { tex: 'mamian', sh: [48, 0.5, 10, 0.1], fab: [0.22, 0.05, 0.5], alpha: 1, uvs: [1, 1], lining: [0.8, 0.8, 0.85], inner: [0.36, 0.44, 0.68], shadow: 0.9 },
   tulle: { tex: 'tulle', sh: [8, 0.06, 8, 0.06], fab: [0.45, 0.6, 0.2], alpha: 0.55, uvs: [5, 2], lining: [0.95, 0.92, 1], shadow: 0.35 },
 }
@@ -427,7 +427,7 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
   }
   const skirtM = () => {
     if (swapT < 0) return undefined
-    const z = swapNext ? Math.pow(swapT / 0.25, 2) * 1.4 : dropZ
+    const z = swapNext ? Math.pow(swapT / 0.25, 2) * 0.9 : dropZ
     return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, z, 1])
   }
 
@@ -606,7 +606,8 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
   let touched = false
   const Rpx = () => Math.min(0.3 * W, 220)
   const fingerV = () => {
-    if (trail.length < 2) return 0
+    // a finger that stopped moving sends no events: its last sample going stale means it is still
+    if (trail.length < 2 || performance.now() - trail[trail.length - 1][1] > 60) return 0
     const a = trail[0], b = trail[trail.length - 1]
     const dtm = (b[1] - a[1]) / 1000
     return dtm > 0.004 ? (b[0] - a[0]) / Rpx() / dtm : 0
@@ -713,7 +714,11 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
     alpha = (omega - w0) / dt
     stand.psi = ps
     stand.omega = (psi - p0) / dt
-    sk.step(dt, ps, stand.omega)
+    // lifted off by its waist, the outgoing skirt stops flying and hangs: the camera never sees up into it
+    if (swapNext) {
+      sk.step(dt, ps, 0)
+      sk.relax(Math.exp(-dt / 0.05))
+    } else sk.step(dt, ps, stand.omega)
     sk.update()
     stepTape(dt, p0, ps)
     stepTag(dt)
@@ -754,7 +759,7 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
     const { vp, eye } = view()
     return {
       vp, eye, psi: psi + nudge, tilt: tiltM(), dizzy: dizzyFace, band: fabric, bandM: m, debug: dbg,
-      cloth: surfs.map((s, k) => ({ surf: s, look: looks[k], m })),
+      cloth: surfs.map((s, k) => ({ surf: s, look: looks[k], m, fade: swapNext ? Math.max(0, 1 - swapT / 0.25) : undefined })),
       dyn: { v: dynV, i: dynIdx, tapeN, tagN: 6, strN: 6 },
       items: { v: itV, i: itIdx, n: nItems },
     }
@@ -826,6 +831,13 @@ export function startGame(canvas: HTMLCanvasElement, hooks: Hooks, startFabric: 
       throwItem(2, 0.13, false, 0.5, v)
       throwItem(3, 0.09, false, 0.48, v)
       hold(CAP, Number(q.get('after') ?? 0.35))
+    } else if (shot === 'swap') {
+      // tap a hanger at full flare: the skirt lifts off (the worst case for seeing under it)
+      settle(1)
+      ramp(CAP, 1.5)
+      hold(CAP, 2)
+      swap((q.get('to') as FabricId) || 'denim')
+      hold(CAP, Number(q.get('after') ?? 0.15))
     } else if (shot.startsWith('t')) {
       settle(1)
       ramp(TAU, 1.2)

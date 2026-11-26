@@ -51,6 +51,8 @@ export interface Gores {
   hem(): { deg: number; rho: number; z: number }
   /** set every gore's flare (a skirt dropped over the form arrives with its hem spread) */
   spread(deg: number): void
+  /** pull every gore's flare toward its rest angle by factor k (0..1) and calm its swing */
+  relax(k: number): void
   /** world position of the outer layer at material u (0..1 round) and fraction f down */
   point(u: number, f: number): [number, number, number]
 }
@@ -115,12 +117,12 @@ function ringNoise(seed: number, terms = 4) {
 }
 
 /** Fold shape: uneven widths (a warped phase), seeded depths with two or three deep folds, slightly skewed. */
-function folds(seed: number, n: number) {
+function folds(seed: number, n: number, deepFolds = true) {
   const warp = ringNoise(seed + 1, 3)
   const r = rng(seed + 2)
-  const amp = Array.from({ length: n }, () => 0.7 + r() * 0.6)
+  const amp = Array.from({ length: n }, () => (deepFolds ? 0.7 + r() * 0.6 : 0.85 + r() * 0.3))
   const deep = [Math.floor(r() * n), Math.floor(r() * n), Math.floor(r() * n)]
-  for (const d of deep.slice(0, 2 + Math.floor(r() * 2))) amp[d] = 1.55 + r() * 0.3
+  if (deepFolds) for (const d of deep.slice(0, 2 + Math.floor(r() * 2))) amp[d] = 1.55 + r() * 0.3
   const ph = r() * TAU
   return (u: number) => {
     const x = u * n + warp(u) * 0.35 + ph / TAU
@@ -156,9 +158,11 @@ export function goreSkirt(id: FabricId, seed: number): Gores {
   // chiffon's slip: shorter, no folds, matte, inside the deepest fold
   const slip: Layer | null = id === 'chiffon' ? { cols: 48, rows: 12, su: 2, sv: 2, x: new Float32Array(48 * 12 * 3) } : null
   const layers = slip ? [slip, ...outs] : outs
-  const fold = pends.map((p, k) => folds(seed * 7 + k * 13 + 3, p.s.folds || 1))
+  // denim is stiff: even folds (a deep pair at the front would read as something else)
+  const fold = pends.map((p, k) => folds(seed * 7 + k * 13 + 3, p.s.folds || 1, id !== 'denim'))
   const hemN = ringNoise(seed * 3 + 11, 4)
-  let psi = 0, omega = 0, prevOmega = 0, t = 0
+  // wave: the flutter's phase, running back round the hem against the spin whichever way it turns
+  let psi = 0, omega = 0, prevOmega = 0, wave = 0
 
   // centre line of one column of one layer: radius and height at each row (and the polar angle there)
   const cRad = new Float32Array(64), cZ = new Float32Array(64), cPol = new Float32Array(64)
@@ -212,7 +216,7 @@ export function goreSkirt(id: FabricId, seed: number): Gores {
           // chiffon's valleys rest on the slip, never deeper
           if (slip && r > 0) rr = Math.max(rr, R_W + (SLIP_R / SLIP_Z) * 1.05 * (rad - R_W) + 0.004, floor)
           // the hem: a slight seeded undulation at rest; at speed a flutter of three waves running back round it
-          zz += f * f * (0.012 * hn * (1 - spin) + spin * (0.016 * f * Math.sin(3 * u * TAU + 7 * t) + 0.006 * Math.sin(8 * u * TAU + 13 * t)))
+          zz += f * f * (0.012 * hn * (1 - spin) + spin * (0.016 * f * Math.sin(3 * u * TAU + 7 * wave) + 0.006 * Math.sin(8 * u * TAU + 13 * wave)))
         } else {
           const m0 = (u * HEM + MAMIAN.PANEL / 2) % HEM
           const ring = TAU * rad
@@ -249,11 +253,15 @@ export function goreSkirt(id: FabricId, seed: number): Gores {
             // a flat panel lies on its chord, not on the circle
             rr = (rad * Math.cos(half)) / Math.cos(Math.min(1.2, Math.abs(a - centreA)))
           }
-          zz += spin * f * f * f * 0.03 * Math.sin(5 * u * TAU + 6 * t)
+          zz += spin * f * f * f * 0.03 * Math.sin(5 * u * TAU + 6 * wave)
         }
         const hr = hipR(zz)
         if (hr > 0) rr = Math.max(rr, hr + 0.004)
-        if (slip && r > 0) floor = Math.max(floor, hr + 0.004)
+        // cloth falls from the hip, never tucks back in under it
+        if (!mam && r > 0) {
+          floor = Math.max(floor, hr + 0.004)
+          rr = Math.max(rr, floor)
+        }
         const i = (r * cols + c) * 3
         x[i] = rr * Math.cos(az)
         x[i + 1] = rr * Math.sin(az)
@@ -265,7 +273,7 @@ export function goreSkirt(id: FabricId, seed: number): Gores {
 
   // the slip: the chiffon's own centre line pulled in toward the waist (radius x SLIP_R, drop x SLIP_Z), so it
   // hangs inside the folds at rest and is a smaller ring under the disc at speed
-  const SLIP_R = 0.4, SLIP_Z = 0.85
+  const SLIP_R = 0.4, SLIP_Z = 0.92
   const buildSlip = () => {
     if (!slip) return
     const p = main
@@ -307,7 +315,7 @@ export function goreSkirt(id: FabricId, seed: number): Gores {
       prevOmega = w
       for (let s = 0; s < n; s++) {
         for (const p of pends) p.step(h, w, acc)
-        t += h
+        wave += h * Math.sign(w)
       }
       psi = ps
       omega = w
@@ -328,6 +336,15 @@ export function goreSkirt(id: FabricId, seed: number): Gores {
       }
       const rho = sr / cols, z = sz / cols
       return { deg: (Math.atan2(rho - R_W, WAIST_Z - z) * 180) / Math.PI, rho, z }
+    },
+    relax(k) {
+      for (const p of pends)
+        for (let i = 0; i < p.s.N; i++) {
+          p.th[i] = p.s.th0 + (p.th[i] - p.s.th0) * k
+          p.thv[i] *= k
+          p.ph[i] *= k
+          p.phv[i] *= k
+        }
     },
     spread(deg) {
       for (const p of pends) p.th.fill(Math.max(p.s.th0, Math.min(p.s.thMax, deg * D2R)))
